@@ -68,5 +68,16 @@ namespace Tetris
             tiles.Add(new Tile(box, color, new Vector2(0, 0)));
             tiles.Add(new Tile(box, color, new Vector2(0, -1)));
         }
+
+        public Shape(Shape shape)
+        {
+            position = shape.position;
+            tiles = new List<Tile>();
+
+            for (int i = 0; i < shape.tiles.Count; ++i)
+            {
+                tiles.Add(new Tile(shape.tiles[i].box, shape.tiles[i].color, shape.tiles[i].position));
+            }
+        }
     }
 }
