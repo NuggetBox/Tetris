@@ -10,6 +10,13 @@ namespace Tetris
         public Color color;
         public Vector2 position;
 
+        public Tile(Texture2D box, Color color)
+        {
+            this.box = box;
+            this.color = color;
+            position = Vector2.Zero;
+        }
+
         public Tile(Texture2D box, Color color, Vector2 position)
         {
             this.box = box;

@@ -13,7 +13,7 @@ namespace Tetris
         Vector2 start = new Vector2(4, 0);
         Texture2D boxTexture;
 
-        List<Tile> stuckTiles = new List<Tile>();
+        Tile[,] stuckTiles;
         Shape movingShape;
 
         KeyboardState previousKeyboard;
@@ -25,9 +25,7 @@ namespace Tetris
         float scale = 2.5f;
         int size = 10;
 
-        int i = 0;
-
-        float dropTime = 0.2f;
+        float dropTime = 1f;
         float dropTimer = 0f;
 
         float downTime = 0.3f;
@@ -35,6 +33,14 @@ namespace Tetris
 
         float movingTime = 0.05f;
         float movingTimer = 0;
+
+        int level = 0;
+        int clearedRows = 0;
+        int score = 0;
+        int[] startScores = new int[]
+        {
+            40, 100, 300, 1200
+        };
 
         public Game1()
         {
@@ -47,7 +53,7 @@ namespace Tetris
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
-
+            stuckTiles = new Tile[xMax, yMax];
 
             base.Initialize();
         }
@@ -72,21 +78,16 @@ namespace Tetris
             float delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
             currentKeyboard = Keyboard.GetState();
 
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
             {
-                i++;
-                StickShape(new Shape(boxTexture, new Vector2(0, i)));
+                Exit();
             }
 
             if (currentKeyboard.IsKeyDown(Keys.Right) && !previousKeyboard.IsKeyDown(Keys.Right))
             {
                 Vector2 newPosition = new Vector2(movingShape.position.X + 1, movingShape.position.Y);
 
-                if (CheckShapeCollision(movingShape, newPosition))
-                {
-                    StickShape(movingShape);
-                }
-                else if (!CheckWallCollision(movingShape, newPosition))
+                if (!CheckWallCollision(movingShape, newPosition) && !CheckShapeCollision(movingShape, newPosition))
                 {
                     movingShape.position = newPosition;
                 }
@@ -95,13 +96,19 @@ namespace Tetris
             {
                 Vector2 newPosition = new Vector2(movingShape.position.X - 1, movingShape.position.Y);
 
-                if (CheckShapeCollision(movingShape, newPosition))
-                {
-                    StickShape(movingShape);
-                }
-                else if (!CheckWallCollision(movingShape, newPosition))
+                if (!CheckWallCollision(movingShape, newPosition) && !CheckShapeCollision(movingShape, newPosition))
                 {
                     movingShape.position = newPosition;
+                }
+            }
+            else if (currentKeyboard.IsKeyDown(Keys.Up) && !previousKeyboard.IsKeyDown(Keys.Up))
+            {
+                Tile[,] newPlacement = movingShape.TryRotation();
+                Shape tempRotated = new Shape(newPlacement, movingShape.position);
+
+                if (!CheckCollision(tempRotated, tempRotated.position))
+                {
+                    movingShape.tiles = newPlacement;
                 }
             }
 
@@ -171,18 +178,33 @@ namespace Tetris
 
             spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
-            for (int i = 0; i < stuckTiles.Count; ++i)
+            for (int i = 0; i < stuckTiles.GetLength(0); ++i)
             {
-                Tile tile = stuckTiles[i];
-                spriteBatch.Draw(tile.box, size * tile.position * new Vector2(scale), null, tile.color, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
+                for (int j = 0; j < stuckTiles.GetLength(1); ++j)
+                {
+                    Tile tile = stuckTiles[i, j];
+
+                    if (tile != null)
+                    {
+                        spriteBatch.Draw(tile.box, size * tile.position * new Vector2(scale), null, tile.color, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
+
+                    }
+                }
             }
 
             if (movingShape != null)
             {
-                for (int i = 0; i < movingShape.tiles.Count; ++i)
+                for (int i = 0; i < movingShape.tiles.GetLength(0); ++i)
                 {
-                    Tile tile = movingShape.tiles[i];
-                    spriteBatch.Draw(tile.box, size * (tile.position + movingShape.position) * new Vector2(scale), null, tile.color, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
+                    for (int j = 0; j < movingShape.tiles.GetLength(1); ++j)
+                    {
+                        Tile tile = movingShape.tiles[i, j];
+
+                        if (tile != null)
+                        {
+                            spriteBatch.Draw(tile.box, size * (new Vector2(i, j) + movingShape.position) * new Vector2(scale), null, tile.color, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
+                        }
+                    }
                 }
 
                 Shape projected = new Shape(movingShape);
@@ -192,10 +214,17 @@ namespace Tetris
                     projected.position.Y += 1;
                 }
 
-                for (int i = 0; i < projected.tiles.Count; ++i)
+                for (int i = 0; i < projected.tiles.GetLength(0); ++i)
                 {
-                    Color color = new Color(projected.tiles[i].color, 0.3f);
-                    spriteBatch.Draw(projected.tiles[i].box, size * (projected.tiles[i].position + projected.position) * new Vector2(scale), null, color, 0, Vector2.Zero, scale, SpriteEffects.None, 1);
+                    for (int j = 0; j < projected.tiles.GetLength(1); ++j) 
+                    {
+                        if (projected.tiles[i, j] != null)
+                        {
+                            Color color = new Color(projected.tiles[i, j].color, 0.3f);
+                            spriteBatch.Draw(projected.tiles[i, j].box, size * (new Vector2(i, j) + projected.position) * new Vector2(scale), null, color, 0, Vector2.Zero, scale, SpriteEffects.None, 1);
+                        }
+                        
+                    }
                 }
             }
             
@@ -211,11 +240,17 @@ namespace Tetris
 
         bool CheckWallCollision(Shape shape, Vector2 newPosition)
         {
-            for (int i = 0; i < shape.tiles.Count; ++i)
+            for (int i = 0; i < shape.tiles.GetLength(0); ++i)
             {
-                if (shape.tiles[i].position.Y + newPosition.Y >= yMax || shape.tiles[i].position.X + newPosition.X >= xMax || shape.tiles[i].position.X + newPosition.X < 0)
+                for (int j = 0; j < shape.tiles.GetLength(1); ++j)
                 {
-                    return true;
+                    if (shape.tiles[i, j] != null)
+                    {
+                        if (j + newPosition.Y >= yMax || i + newPosition.X >= xMax || i + newPosition.X < 0)
+                        {
+                            return true;
+                        }
+                    }
                 }
             }
 
@@ -224,13 +259,25 @@ namespace Tetris
 
         bool CheckShapeCollision(Shape shape, Vector2 newPosition)
         {
-            for (int i = 0; i < shape.tiles.Count; ++i)
+            for (int i = 0; i < shape.tiles.GetLength(0); ++i)
             {
-                for (int j = 0; j < stuckTiles.Count; ++j)
+                for (int j = 0; j < shape.tiles.GetLength(1); ++j)
                 {
-                    if (shape.tiles[i].position + newPosition == stuckTiles[j].position)
+                    for (int k = 0; k < stuckTiles.GetLength(0); ++k)
                     {
-                        return true;
+                        for (int l = 0; l < stuckTiles.GetLength(1); ++l)
+                        {
+                            if (stuckTiles[k, l] != null)
+                            {
+                                if (shape.tiles[i, j] != null)
+                                {
+                                    if (new Vector2(i, j) + newPosition == stuckTiles[k, l].position)
+                                    {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -254,10 +301,88 @@ namespace Tetris
         {
             movingShape = new Shape(boxTexture, start);
 
-            for (int i = 0; i < shape.tiles.Count; ++i)
+            for (int i = 0; i < shape.tiles.GetLength(0); ++i)
             {
-                Tile tile = shape.tiles[i];
-                stuckTiles.Add(new Tile(tile.box, tile.color, tile.position + shape.position));
+                for (int j = 0; j < shape.tiles.GetLength(1); ++j)
+                {
+                    Tile tile = shape.tiles[i, j];
+
+                    if (tile != null)
+                    {
+                        stuckTiles[(int)(i + shape.position.X), (int)(j + shape.position.Y)] = new Tile(tile.box, tile.color, new Vector2(i, j) + shape.position);
+                    }
+                }
+            }
+
+            // Lose
+            if (CheckShapeCollision(movingShape, start))
+            {
+                Exit();
+            }
+
+            ClearRows();
+        }
+
+        void ClearRows()
+        {
+            int cleared = 0;
+
+            for (int i = yMax - 1; i >= 0; --i)
+            {
+                for (int j = 0; j < xMax; ++j)
+                {
+                    if (stuckTiles[j, i] == null)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        if (j == xMax - 1)
+                        {
+                            ClearRow(i, true);
+                            cleared++;
+                        }
+                    }
+                }
+            }
+
+            if (cleared > 0)
+            {
+                score += (level + 1) * startScores[cleared - 1];
+                clearedRows += cleared;
+
+                if (clearedRows >= 10)
+                {
+                    level++;
+                    clearedRows = 0;
+                }
+            }
+        }
+
+        void ClearRow(int index, bool leftToRight)
+        {
+            for (int i = 0; i < xMax; ++i)
+            {
+                stuckTiles[i, index] = null;
+            }
+
+            DropRows(index);
+        }
+
+        void DropRows(int clearedRow)
+        {
+            for (int i = clearedRow - 1; i >= 0; --i)
+            {
+                for (int j = 0; j < xMax; ++j)
+                {
+                    Tile tile = stuckTiles[j, i];
+
+                    if (tile != null)
+                    {
+                        stuckTiles[j, i + 1] = new Tile(tile.box, tile.color, new Vector2(tile.position.X, tile.position.Y + 1));
+                        stuckTiles[j, i] = null;
+                    }
+                }
             }
         }
     }
