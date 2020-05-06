@@ -104,11 +104,14 @@ namespace Tetris
             else if (currentKeyboard.IsKeyDown(Keys.Up) && !previousKeyboard.IsKeyDown(Keys.Up))
             {
                 Tile[,] newPlacement = movingShape.TryRotation();
-                Shape tempRotated = new Shape(newPlacement, movingShape.position);
-
-                if (!CheckCollision(tempRotated, tempRotated.position))
+                if (newPlacement != null)
                 {
-                    movingShape.tiles = newPlacement;
+                    Shape tempRotated = new Shape(newPlacement, movingShape.position);
+
+                    if (!CheckCollision(tempRotated, tempRotated.position))
+                    {
+                        movingShape.tiles = newPlacement;
+                    }
                 }
             }
 
