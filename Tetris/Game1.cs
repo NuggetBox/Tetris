@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Tetris
 {
@@ -9,6 +10,11 @@ namespace Tetris
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        SpriteFont font;
+
+        SoundEffectInstance mySong;
+        AudioListener listener = new AudioListener();
+        AudioEmitter emitter = new AudioEmitter();
 
         Vector2 start = new Vector2(4, 0);
         Texture2D boxTexture;
@@ -45,7 +51,7 @@ namespace Tetris
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
-            graphics.PreferredBackBufferWidth = (int)(size * scale * xMax);
+            graphics.PreferredBackBufferWidth = (int)(size * scale * xMax * 1.9f);
             graphics.PreferredBackBufferHeight = (int)(size * scale * yMax);
             Content.RootDirectory = "Content";
         }
@@ -61,6 +67,16 @@ namespace Tetris
         protected override void LoadContent()
         {
             spriteBatch = new SpriteBatch(GraphicsDevice);
+            font = Content.Load<SpriteFont>("Standard");
+
+            listener.Position = new Vector3(0, 0, 0);
+            emitter.Position = new Vector3(1, 0, 0);
+
+            mySong = Content.Load<SoundEffect>("tetris").CreateInstance();
+            mySong.IsLooped = true;
+            mySong.Volume = 0.25f;
+            mySong.Play();
+            mySong.Apply3D(listener, emitter);
 
             boxTexture = Content.Load<Texture2D>("box");
             movingShape = new Shape(boxTexture, start);
@@ -75,8 +91,14 @@ namespace Tetris
 
         protected override void Update(GameTime gameTime)
         {
+            dropTime = 0.9f - level * 0.2f + 0.15f;
+
             float delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
             currentKeyboard = Keyboard.GetState();
+
+            double total = gameTime.TotalGameTime.TotalSeconds;
+            emitter.Position = new Vector3((float)System.Math.Cos(total), 0, (float)System.Math.Sin(total));
+            mySong.Apply3D(listener, emitter);
 
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
             {
@@ -230,7 +252,10 @@ namespace Tetris
                     }
                 }
             }
-            
+
+            spriteBatch.DrawString(font, "Level: " + level, new Vector2(xMax + 95, yMax - 25) * scale, Color.White, 0, Vector2.Zero, 0.15f, SpriteEffects.None, 0);
+            spriteBatch.DrawString(font, "Score: " + score, new Vector2(xMax + 95, yMax - 10) * scale, Color.White, 0, Vector2.Zero, 0.15f, SpriteEffects.None, 0);
+
             spriteBatch.End();
 
             base.Draw(gameTime);
@@ -342,7 +367,8 @@ namespace Tetris
                     {
                         if (j == xMax - 1)
                         {
-                            ClearRow(i, true);
+                            ClearRow(i);
+                            i++;
                             cleared++;
                         }
                     }
@@ -362,7 +388,7 @@ namespace Tetris
             }
         }
 
-        void ClearRow(int index, bool leftToRight)
+        void ClearRow(int index)
         {
             for (int i = 0; i < xMax; ++i)
             {

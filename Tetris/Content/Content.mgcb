@@ -25,3 +25,16 @@
 /processorParam:TextureFormat=Color
 /build:box.png
 
+#begin Standard.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Standard.spritefont
+
+#begin tetris.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:tetris.wav
+
